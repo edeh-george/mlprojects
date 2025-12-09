@@ -1,14 +1,15 @@
 import os
 
 from dotenv import load_dotenv
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains import create_history_aware_retriever
+from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import Chroma
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-
 load_dotenv()
+
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 persistent_directory = os.path.join(current_dir, "db", "chroma_db")
