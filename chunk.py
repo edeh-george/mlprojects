@@ -1,12 +1,12 @@
 import os
-
-from langchain.text_splitter import CharacterTextSplitter
+import docx
+from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
-
+import pdfplumber
 current_dir = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(current_dir, "books", "civic-education.docx")
+file_path = os.path.join(current_dir, "books", "algorithms.pdf")
 db_dir = os.path.join(current_dir, "db")
 
 if not os.path.exists(file_path):
@@ -14,7 +14,33 @@ if not os.path.exists(file_path):
         f"The file {file_path} does not exist. Please check the path."
     )
 
-loader = TextLoader(file_path)
+def convert_docx_to_text(file_path):
+    doc = docx.Document(file_path)
+    txt_path = file_path.replace(".docx", ".txt")
+    with open(txt_path, "w", encoding="utf-8") as f:
+        for paragraph in doc.paragraphs:
+            f.write(paragraph.text + "\n")
+
+
+def extract_text_from_pdf(file_path):
+    text_chunks = []
+    pdf_path = file_path.replace(".pdf", ".txt")
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            page_text = page.extract_text()
+            if page_text:
+                text_chunks.append(page_text)
+    with open(pdf_path, "w", encoding="utf-8") as f:
+        for chunk in text_chunks:
+            f.write(chunk + "\n")
+
+extract_text_from_pdf(file_path)
+
+def extract_text_from_txt(file_stream):
+    return file_stream.read().decode("utf-8", errors="ignore")
+
+
+loader = TextLoader(file_path.replace('.pdf', '.txt'), autodetect_encoding=True)
 documents = loader.load()
 
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
@@ -39,4 +65,3 @@ def create_vector_store(docs, embeddings, store_name):
 
 openai_embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
 create_vector_store(docs, openai_embeddings, "chroma_db")
-
