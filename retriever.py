@@ -1,12 +1,13 @@
 import os
+
 import docx
 import pdfplumber
-from langchain_community.document_loaders import DirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
-from langchain_classic.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-
+os.environ["HF_HUB_DOWNLOAD_TIMEOUT"] = "600000"
 huggingface_embedding = HuggingFaceEmbeddings(model_name="BAAI/bge-base-en-v1.5")
 current_dir = os.path.dirname(os.path.abspath(__file__))
 book_dir = os.path.join(current_dir, "books")
@@ -17,12 +18,14 @@ if not os.path.exists(book_dir):
         f"The directory {book_dir} does not exist. Please check the path."
     )
 
+
 def convert_docx_to_text(file_path):
     doc = docx.Document(file_path)
     txt_path = file_path.replace(".docx", ".txt")
     with open(txt_path, "w", encoding="utf-8") as f:
         for paragraph in doc.paragraphs:
             f.write(paragraph.text + "\n")
+
 
 def extract_text_from_pdf(file_path):
     text_chunks = []
@@ -49,7 +52,7 @@ def process_documents(book_dir):
                 extract_text_from_pdf(file_path)
 
 
-loader = DirectoryLoader(book_dir, glob="*.txt", recursive=True, show_progress=True)
+loader = TextLoader(os.path.join(book_dir, "black_parrot.txt"), autodetect_encoding=True)
 documents = loader.load()
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)

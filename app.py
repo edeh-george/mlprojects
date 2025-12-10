@@ -6,7 +6,7 @@ from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 
 from .retriever import get_retriever
 load_dotenv()
@@ -15,7 +15,6 @@ db, retriever = get_retriever()
 current_dir = os.path.dirname(os.path.abspath(__file__))
 persistent_directory = os.path.join(current_dir, "db", "chroma_db")
 
-embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
 
 llm = ChatOpenAI(model="gpt-4o")
