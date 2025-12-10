@@ -1,26 +1,22 @@
 import os
 
 from dotenv import load_dotenv
-from langchain.chains import create_history_aware_retriever
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import Chroma
+from langchain_classic.chains import history_aware_retriever
+from langchain_classic.chains.retrieval import create_retrieval_chain
+from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+
+from .chunk import get_retriever
 load_dotenv()
 
-
+db, retriever = get_retriever()
 current_dir = os.path.dirname(os.path.abspath(__file__))
 persistent_directory = os.path.join(current_dir, "db", "chroma_db")
 
 embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
 
-db = Chroma(persist_directory=persistent_directory, embedding_function=embeddings)
-retriever = db.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 3},
-)
 
 llm = ChatOpenAI(model="gpt-4o")
 
@@ -40,7 +36,7 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-history_aware_retriever = create_history_aware_retriever(
+history_aware_retriever = history_aware_retriever(
     llm, retriever, contextualize_q_prompt
 )
 

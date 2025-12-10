@@ -1,17 +1,20 @@
 import os
 import docx
-from langchain_text_splitters import CharacterTextSplitter
-from langchain_community.document_loaders import TextLoader
-from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
 import pdfplumber
+from langchain_community.document_loaders import DirectoryLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from langchain_classic.embeddings import HuggingFaceEmbeddings
+
+
+huggingface_embedding = HuggingFaceEmbeddings(model_name="BAAI/bge-base-en-v1.5")
 current_dir = os.path.dirname(os.path.abspath(__file__))
-file_path = os.path.join(current_dir, "books", "algorithms.pdf")
+book_dir = os.path.join(current_dir, "books")
 db_dir = os.path.join(current_dir, "db")
 
-if not os.path.exists(file_path):
+if not os.path.exists(book_dir):
     raise FileNotFoundError(
-        f"The file {file_path} does not exist. Please check the path."
+        f"The directory {book_dir} does not exist. Please check the path."
     )
 
 def convert_docx_to_text(file_path):
@@ -20,7 +23,6 @@ def convert_docx_to_text(file_path):
     with open(txt_path, "w", encoding="utf-8") as f:
         for paragraph in doc.paragraphs:
             f.write(paragraph.text + "\n")
-
 
 def extract_text_from_pdf(file_path):
     text_chunks = []
@@ -34,34 +36,50 @@ def extract_text_from_pdf(file_path):
         for chunk in text_chunks:
             f.write(chunk + "\n")
 
-extract_text_from_pdf(file_path)
 
-def extract_text_from_txt(file_stream):
-    return file_stream.read().decode("utf-8", errors="ignore")
+def process_documents(book_dir):
+    for root, _, files in os.walk(book_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if file.lower().endswith(".docx"):
+                print(f"Converting {file} to text")
+                convert_docx_to_text(file_path)
+            elif file.lower().endswith(".pdf"):
+                print(f"Extracting text from {file}")
+                extract_text_from_pdf(file_path)
 
+process_documents(book_dir)
 
-loader = TextLoader(file_path.replace('.pdf', '.txt'), autodetect_encoding=True)
+loader = DirectoryLoader(book_dir, glob="*.txt", recursive=True, show_progress=True)
 documents = loader.load()
 
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-docs = text_splitter.split_documents(documents)
-
-print("\n--- Document Chunks Information ---")
-print(f"Number of document chunks: {len(docs)}")
-print(f"Sample chunk:\n{docs[0].page_content}\n")
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+chunked_documents = text_splitter.split_documents(documents)
 
 
 def create_vector_store(docs, embeddings, store_name):
     persistent_directory = os.path.join(db_dir, store_name)
     if not os.path.exists(persistent_directory):
         print(f"\n--- Creating vector store {store_name} ---")
-        Chroma.from_documents(
-            docs, embeddings, persist_directory=persistent_directory)
+        print(f"Starting embedding and storage process for {len(docs)} documents...")
+        db = Chroma.from_documents(
+            docs, embeddings, persist_directory=persistent_directory
+        )
         print(f"--- Finished creating vector store {store_name} ---")
     else:
         print(
-            f"Vector store {store_name} already exists. No need to initialize.")
+            f"Vector store {store_name} already exists. Loading it instead of re-initializing."
+        )
+        db = Chroma(
+            persist_directory=persistent_directory, embedding_function=embeddings
+        )
+    return db
 
 
-openai_embeddings = OpenAIEmbeddings(model="text-embedding-ada-002")
-create_vector_store(docs, openai_embeddings, "chroma_db")
+def get_retriever():
+    db = create_vector_store(chunked_documents, huggingface_embedding, "chroma_db")
+    retriever = db.as_retriever(
+        search_type="similarity_score_threshold",
+        search_kwargs={"k": 3, "score_threshold": 0.1},
+    )
+    return db, retriever
