@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-from .chunk import get_retriever
+from .retriever import get_retriever
 load_dotenv()
 
 db, retriever = get_retriever()

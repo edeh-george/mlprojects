@@ -48,7 +48,6 @@ def process_documents(book_dir):
                 print(f"Extracting text from {file}")
                 extract_text_from_pdf(file_path)
 
-process_documents(book_dir)
 
 loader = DirectoryLoader(book_dir, glob="*.txt", recursive=True, show_progress=True)
 documents = loader.load()
