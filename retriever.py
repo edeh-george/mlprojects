@@ -3,7 +3,7 @@ import os
 import docx
 import pdfplumber
 from langchain_chroma import Chroma
-from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import DirectoryLoader
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
@@ -51,10 +51,7 @@ def process_documents(book_dir):
                 print(f"Extracting text from {file}")
                 extract_text_from_pdf(file_path)
 
-
-loader = TextLoader(
-    os.path.join(book_dir, "black_parrot.txt"), autodetect_encoding=True
-)
+loader = DirectoryLoader(book_dir, glob="*.txt", recursive=True, show_progress=True)
 documents = loader.load()
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
@@ -65,23 +62,18 @@ def create_vector_store(docs, embeddings, store_name):
     persistent_directory = os.path.join(db_dir, store_name)
     if not os.path.exists(persistent_directory):
         os.makedirs(persistent_directory)
+    os.chmod(persistent_directory, 0o777)
 
-    if not os.path.exists(os.path.join(persistent_directory, "chroma.sqlite3")):
+    if not os.path.exists(os.path.join(persistent_directory, 'chroma.sqlite3')):
         print(f"\n--- Creating vector store {store_name} ---")
         print(f"Starting embedding and storage process for {len(docs)} documents...")
         db = Chroma.from_documents(
-            docs, embeddings, persist_directory=persistent_directory
-        )
+            docs, embeddings, persist_directory=persistent_directory)
         print(f"--- Finished creating vector store {store_name} ---")
     else:
         print(
-            f"Vector store {store_name} already exists. \
-                Loading it instead of re-initializing."
-        )
-        db = Chroma(
-            persist_directory=persistent_directory,
-            embedding_function=embeddings
-        )
+            f"Vector store {store_name} already exists. Loading it instead of re-initializing.")
+        db = Chroma(persist_directory=persistent_directory, embedding_function=embeddings)
     return db
 
 
@@ -101,4 +93,10 @@ if __name__ == "__main__":
         if query.lower() == "exit":
             break
         print("Retrieving relevant documents...\n")
-        docs = retriever.invoke(query)
+        docs = retriever.invoke("Project Gutenberg")
+        print(f"Number of documents retrieved: {len(docs)}")
+        for doc in docs:
+            print(doc.page_content)
+
+
+
