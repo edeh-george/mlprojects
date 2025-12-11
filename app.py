@@ -1,23 +1,33 @@
 import os
 
 from dotenv import load_dotenv
-from langchain_classic.chains import history_aware_retriever
+from langchain_classic.chains.history_aware_retriever import create_history_aware_retriever
 from langchain_classic.chains.retrieval import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_openai import ChatOpenAI
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
-from .retriever import get_retriever
+from retriever import get_retriever
 load_dotenv()
 
 db, retriever = get_retriever()
 current_dir = os.path.dirname(os.path.abspath(__file__))
 persistent_directory = os.path.join(current_dir, "db", "chroma_db")
 
+repo_id = "Qwen/Qwen2.5-VL-7B-Instruct"
 
+hf_llm = HuggingFaceEndpoint(
+    repo_id=repo_id,
+    task="conversational",
+    max_new_tokens=512,
+    do_sample=True,
+    temperature=0.7,
+    huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
+)
 
-llm = ChatOpenAI(model="gpt-4o")
+llm = ChatHuggingFace(llm=hf_llm)
+
 
 contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
@@ -35,7 +45,7 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-history_aware_retriever = history_aware_retriever(
+history_aware_retriever = create_history_aware_retriever(
     llm, retriever, contextualize_q_prompt
 )
 
